@@ -1,0 +1,21 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: pedidos360-rabbit-admin-service
+
+  # Conexion al broker RabbitMQ (sobreescribible por variables de entorno)
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    connection-timeout: 3s
+
+app:
+  security:
+    issuer: ${JWT_ISSUER:https://login.microsoftonline.com/670a4f6b-6666-47bc-9580-045077b9f328/v2.0}
+    audience: ${JWT_AUDIENCE:a063dd44-191e-4715-9b39-5923cc30c293}
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:4200,https://sebaescobar4.github.io}

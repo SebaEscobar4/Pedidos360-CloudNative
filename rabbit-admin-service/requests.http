@@ -1,0 +1,86 @@
+### Peticiones de ejemplo para rabbit-admin-service (extension REST Client de VS Code)
+### Pega en @token el Access Token de un usuario con App Role ADMIN
+### (se puede copiar desde el navegador tras iniciar sesion en el frontend).
+
+@host = http://localhost:8081
+@token = PEGA_AQUI_TU_ACCESS_TOKEN
+
+### 0. Salud (publico)
+GET {{host}}/public/health
+
+### 1. Crear exchange
+POST {{host}}/api/exchanges
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "pedidos360.reportes.exchange", "type": "topic" }
+
+### 2. Crear cola con DLQ, TTL y largo maximo
+POST {{host}}/api/queues
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "pedidos360.reportes.queue",
+  "durable": true,
+  "deadLetterExchange": "pedidos360.dlx",
+  "deadLetterRoutingKey": "reportes.dlq",
+  "messageTtl": 60000,
+  "maxLength": 1000
+}
+
+### 3. Crear binding
+POST {{host}}/api/bindings
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "queue": "pedidos360.reportes.queue", "exchange": "pedidos360.reportes.exchange", "routingKey": "reporte.#" }
+
+### 4. Consultar cola
+GET {{host}}/api/queues/pedidos360.reportes.queue
+Authorization: Bearer {{token}}
+
+### 5. Eliminar binding
+DELETE {{host}}/api/bindings?queue=pedidos360.reportes.queue&exchange=pedidos360.reportes.exchange&routingKey=reporte.%23
+Authorization: Bearer {{token}}
+
+### 6. Eliminar cola
+DELETE {{host}}/api/queues/pedidos360.reportes.queue
+Authorization: Bearer {{token}}
+
+### 7. Eliminar exchange
+DELETE {{host}}/api/exchanges/pedidos360.reportes.exchange
+Authorization: Bearer {{token}}
+
+### --- Casos de error ---
+
+### 8. Nombre vacio -> 400
+POST {{host}}/api/queues
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "" }
+
+### 9. Configuracion invalida (TTL negativo, nombre reservado, routing key de DLQ sin exchange) -> 400
+POST {{host}}/api/queues
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "amq.demo", "messageTtl": -5, "deadLetterRoutingKey": "x" }
+
+### 10. Tipo de exchange invalido -> 400
+POST {{host}}/api/exchanges
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "demo.exchange", "type": "inventado" }
+
+### 11. Cola inexistente -> 404
+DELETE {{host}}/api/queues/no.existe
+Authorization: Bearer {{token}}
+
+### 12. Sin token -> 401
+POST {{host}}/api/queues
+Content-Type: application/json
+
+{ "name": "demo.queue" }

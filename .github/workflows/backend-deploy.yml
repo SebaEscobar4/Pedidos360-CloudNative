@@ -1,0 +1,52 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'notificaciones-service/**'
+      - '.github/workflows/backend-deploy.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compilar backend
+        run: mvn -f backend/pom.xml clean package -DskipTests
+
+      - name: Compilar notificaciones-service
+        run: mvn -f notificaciones-service/pom.xml clean package -DskipTests
+
+      - name: Preparar SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/pedidos360-key.pem
+          chmod 600 ~/.ssh/pedidos360-key.pem
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Subir JARs a EC2
+        run: |
+          scp -i ~/.ssh/pedidos360-key.pem \
+            backend/target/pedidos360-backend-0.0.1-SNAPSHOT.jar \
+            notificaciones-service/target/pedidos360-notificaciones-service-0.0.1-SNAPSHOT.jar \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/
+
+      - name: Reiniciar servicios
+        run: |
+          ssh -i ~/.ssh/pedidos360-key.pem \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "sudo systemctl restart pedidos360 pedidos360-notificaciones && sleep 20 && sudo systemctl is-active pedidos360 pedidos360-notificaciones"

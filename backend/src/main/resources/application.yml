@@ -1,0 +1,60 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: pedidos360-backend
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://aws-1-sa-east-1.pooler.supabase.com:5432/postgres}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.postgresql.Driver}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres.gfzlawbsxrtbndpdluqo}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+
+  jpa:
+    database-platform: ${SPRING_JPA_PLATFORM:org.hibernate.dialect.PostgreSQLDialect}
+    hibernate:
+      ddl-auto: ${SPRING_JPA_DDL_AUTO:update}
+    show-sql: false
+    defer-datasource-initialization: true
+
+  sql:
+    init:
+      mode: ${SPRING_SQL_INIT_MODE:never}
+
+  # Conexion al broker RabbitMQ (sobreescribible por variables de entorno)
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    connection-timeout: 3s
+    publisher-returns: true
+    template:
+      mandatory: true
+
+app:
+  security:
+    issuer: ${JWT_ISSUER:https://login.microsoftonline.com/670a4f6b-6666-47bc-9580-045077b9f328/v2.0}
+    audience: ${JWT_AUDIENCE:a063dd44-191e-4715-9b39-5923cc30c293}
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:4200,http://localhost:5173,http://localhost:3000,https://sebaescobar4.github.io}
+
+  # Topologia de mensajeria: UNICO lugar donde se definen nombres de exchanges, colas y routing keys.
+  # Debe coincidir con app.rabbitmq de notificaciones-service.
+  rabbitmq:
+    exchanges:
+      pedidos: pedidos360.pedidos.exchange
+      dead-letter: pedidos360.dlx
+    queues:
+      notificaciones: pedidos360.notificaciones.queue
+      tickets: pedidos360.tickets.queue
+      notificaciones-dlq: pedidos360.notificaciones.dlq
+      tickets-dlq: pedidos360.tickets.dlq
+    routing-keys:
+      pedido-creado: pedido.creado
+      pedido-estado-actualizado: pedido.estado.actualizado
+      notificaciones-binding: pedido.#
+      tickets-binding: pedido.creado
+      notificaciones-dlq: notificaciones.dlq
+      tickets-dlq: tickets.dlq
