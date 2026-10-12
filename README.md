@@ -126,7 +126,8 @@ los mensajes se acumulan en las colas. Al volver a iniciarlo, se procesan todos.
 ## API del microservicio administrador (`http://localhost:8081`)
 
 Todas las rutas `/api/**` exigen `Authorization: Bearer <JWT>` de un usuario con App Role `ADMIN`.
-Ejemplos listos para ejecutar en `rabbit-admin-service/requests.http`.
+Ejemplos listos para ejecutar en `rabbit-admin-service/requests.http`, y una demostracion completa
+(creacion, validaciones y eliminacion) con `powershell -ExecutionPolicy Bypass -File .\demo.ps1`.
 
 | Metodo | Ruta | Descripcion | Respuestas |
 |---|---|---|---|
@@ -156,6 +157,23 @@ Ejemplo de cola con DLQ:
 Reglas de validacion: el nombre es obligatorio, de hasta 255 caracteres, solo con letras, numeros,
 `.`, `-`, `_` y `:`, y no puede comenzar con `amq.` (reservado por RabbitMQ). `messageTtl` y `maxLength`
 deben ser positivos y `deadLetterRoutingKey` exige indicar `deadLetterExchange`.
+
+## Despliegue en la nube
+
+| Componente | Donde corre |
+|---|---|
+| Frontend | GitHub Pages: https://sebaescobar4.github.io/Pedidos360-CloudNative/ |
+| IDaaS | Microsoft Entra ID (registros `Pedidos360-SPA` y `Pedidos360-API`) |
+| API publica (HTTPS) | AWS API Gateway (HTTP API) hacia la instancia EC2 |
+| `backend` y `notificaciones-service` | AWS EC2 (Amazon Linux 2023), como servicios systemd |
+| RabbitMQ | Contenedor Docker en la misma instancia EC2, accesible solo desde ella |
+| Base de datos | PostgreSQL en Supabase |
+
+Cada push a `main` despliega automaticamente con GitHub Actions (`.github/workflows`). El workflow del
+backend usa los secretos `EC2_HOST`, `EC2_USER` y `EC2_SSH_KEY` del repositorio.
+
+La clave de la base de datos no esta en el codigo: se entrega con la variable de entorno
+`SPRING_DATASOURCE_PASSWORD` (en el servidor, en `/etc/pedidos360.env`).
 
 ## Pruebas
 

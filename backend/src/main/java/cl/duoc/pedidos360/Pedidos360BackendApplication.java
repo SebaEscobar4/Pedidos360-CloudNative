@@ -1,5 +1,7 @@
 package cl.duoc.pedidos360;
 
+import java.util.TimeZone;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -17,6 +19,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class Pedidos360BackendApplication {
 
     public static void main(String[] args) {
+        // Las fechas de los pedidos usan la hora de Chile aunque el servidor cloud este en UTC
+        TimeZone.setDefault(TimeZone.getTimeZone(
+                System.getenv().getOrDefault("APP_TIMEZONE", "America/Santiago")));
         SpringApplication.run(Pedidos360BackendApplication.class, args);
     }
 }

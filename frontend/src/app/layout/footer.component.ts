@@ -22,12 +22,12 @@ import { CommonModule } from '@angular/common';
         <div class="footer-meta">
           <div class="architecture-pill">
             <span class="status-dot"></span>
-            Arquitectura: Angular 19 + MSAL &bull; Spring Boot 3.4 &bull; H2 /
-            RDS
+            Arquitectura: Angular 19 + MSAL &bull; Spring Boot 3.4 &bull; RabbitMQ &bull;
+            PostgreSQL
           </div>
           <p class="copyright">
             &copy; {{ currentYear }} Pedidos360 &bull; Duoc UC &bull; Evaluación
-            Parcial N° 1
+            Parcial N° 3
           </p>
         </div>
       </div>
