@@ -1,0 +1,96 @@
+server:
+  port: ${SERVER_PORT:8084}
+
+spring:
+  application:
+    name: pedidos360-analitica-service
+
+  # Cliente Kafka: conexion a los 3 brokers de docker-compose.kafka.yml
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9093,localhost:9094}
+    client-id: pedidos360-analitica
+
+    # Los deserializers (ErrorHandlingDeserializer + JsonDeserializer al DTO) se definen en KafkaConsumerConfig
+    consumer:
+      # Consumer group de la analitica: si se levantan varias instancias, Kafka reparte entre ellas
+      # las 3 particiones del topico (balanceo de carga). Cada evento lo procesa UNA sola instancia.
+      group-id: ${KAFKA_GROUP_ID:pedidos360-analitica}
+      # Un grupo nuevo lee la historia completa del topico (7 dias de retencion)
+      auto-offset-reset: earliest
+      # Los offsets los confirma el contenedor de Spring despues de procesar cada registro (ack-mode RECORD)
+      enable-auto-commit: false
+      isolation-level: read-committed
+      max-poll-records: 50
+      properties:
+        # Rebalanceo cooperativo: al entrar o salir una instancia no se detiene todo el grupo
+        partition.assignment.strategy: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+        session.timeout.ms: 45000
+        heartbeat.interval.ms: 3000
+        max.poll.interval.ms: 300000
+
+    # Productor de metricas (serializers definidos en KafkaProducerConfig)
+    producer:
+      acks: all
+      compression-type: lz4
+      properties:
+        enable.idempotence: true
+        linger.ms: 20
+        request.timeout.ms: 10000
+        delivery.timeout.ms: 30000
+        max.block.ms: 5000
+
+    listener:
+      # Si un topico aun no existe, el consumidor espera en vez de detener la aplicacion
+      missing-topics-fatal: false
+
+    admin:
+      fail-fast: false
+      operation-timeout: 10s
+
+app:
+  kafka:
+    topics:
+      # Topico que se CONSUME (lo crea el backend de pedidos / kafka-init)
+      pedidos-eventos:
+        name: pedidos360.pedidos.eventos
+      pedidos-eventos-dlt:
+        name: pedidos360.pedidos.eventos.DLT
+      # Topico que este microservicio PRODUCE y administra.
+      # cleanup.policy=compact: Kafka conserva el ultimo valor por clave (fecha), de modo que
+      # cualquier consumidor reconstruye las metricas de cada dia leyendo desde el inicio.
+      metricas-ventas:
+        name: pedidos360.metricas.ventas
+        partitions: 3
+        replicas: 3
+        configs:
+          "[cleanup.policy]": compact
+          "[min.insync.replicas]": "2"
+          "[min.compaction.lag.ms]": "60000"
+          "[segment.ms]": "3600000"
+          "[min.cleanable.dirty.ratio]": "0.1"
+          "[delete.retention.ms]": "86400000"
+      metricas-ventas-dlt:
+        name: pedidos360.metricas.ventas.DLT
+        partitions: 1
+        replicas: 3
+        configs:
+          "[cleanup.policy]": delete
+          "[retention.ms]": "1209600000"
+          "[min.insync.replicas]": "2"
+
+    consumo:
+      # Hilos consumidores por instancia (uno por particion del topico de pedidos)
+      concurrencia: ${KAFKA_CONCURRENCIA:3}
+      # Grupo propio para leer el Dead Letter Topic y registrar cada mensaje fallido
+      grupo-dlt: pedidos360-analitica-dlt
+
+    reintentos:
+      # Errores transitorios: 3 reintentos con espera exponencial 1s, 2s, 4s y luego al DLT
+      maximo: ${KAFKA_REINTENTOS_MAXIMO:3}
+      intervalo-inicial-ms: 1000
+      multiplicador: 2.0
+      intervalo-maximo-ms: 8000
+
+    # Cantidad de eventoId recordados para descartar eventos duplicados
+    idempotencia:
+      capacidad: 10000
