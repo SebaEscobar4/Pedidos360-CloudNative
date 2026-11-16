@@ -2,6 +2,7 @@ package cl.duoc.pedidos360.messaging;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import cl.duoc.pedidos360.model.Pedido;
 
@@ -9,12 +10,15 @@ import cl.duoc.pedidos360.model.Pedido;
  * =========================================================================
  * EVENTO: PedidoEvento
  * =========================================================================
- * FUNCION: Contrato del mensaje que se publica en RabbitMQ cada vez que un pedido
- *          se crea o cambia de estado. Es una copia plana (sin entidades JPA) para
+ * FUNCION: Contrato (DTO) del mensaje que se publica en RabbitMQ y en Kafka cada vez que
+ *          un pedido se crea o cambia de estado. Es una copia plana (sin entidades JPA) para
  *          que los microservicios consumidores no dependan de la base de datos.
- * CONECTA CON: PedidoService (lo emite) y PedidoEventPublisher (lo envia al broker).
+ *          'eventoId' identifica cada evento de forma unica: los consumidores lo usan para
+ *          descartar duplicados (Kafka garantiza entrega "al menos una vez").
+ * CONECTA CON: PedidoService (lo emite), PedidoEventPublisher (RabbitMQ) y PedidoKafkaPublisher (Kafka).
  */
 public record PedidoEvento(
+        String eventoId,
         TipoEvento tipo,
         Long pedidoId,
         String numeroPedido,
@@ -35,6 +39,7 @@ public record PedidoEvento(
                 .map(i -> new Item(i.getProductoNombre(), i.getCantidad(), i.getPrecioUnitario(), i.getSubtotal()))
                 .toList();
         return new PedidoEvento(
+                UUID.randomUUID().toString(),
                 tipo,
                 pedido.getId(),
                 pedido.getNumeroPedido(),

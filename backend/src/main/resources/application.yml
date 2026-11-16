@@ -34,6 +34,46 @@ spring:
     template:
       mandatory: true
 
+  # Cliente Kafka. Los 3 brokers levantados con docker-compose.kafka.yml.
+  # Con varios bootstrap servers el cliente sigue conectando aunque uno este caido.
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9093,localhost:9094}
+    client-id: pedidos360-backend
+    producer:
+      # Serializers: StringSerializer (clave) y JsonSerializer sin cabeceras de tipo (valor),
+      # definidos en KafkaProducerConfig para usar el ObjectMapper de Spring (fechas ISO-8601).
+      # acks=all + idempotencia: el evento queda escrito en las replicas en sincronia
+      # (min.insync.replicas=2) y un reintento de red nunca lo duplica
+      acks: all
+      compression-type: lz4
+      batch-size: 16384
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        linger.ms: 10
+        request.timeout.ms: 10000
+        delivery.timeout.ms: 30000
+        # Tiempo maximo que send() espera metadatos si el cluster no responde: el pedido nunca queda colgado
+        max.block.ms: 3000
+    # Consumidor de metricas (deserializers definidos en KafkaConsumerConfig)
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      isolation-level: read-committed
+      max-poll-records: 100
+      properties:
+        partition.assignment.strategy: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+        session.timeout.ms: 45000
+        heartbeat.interval.ms: 3000
+    listener:
+      missing-topics-fatal: false
+    admin:
+      # Si Kafka no esta disponible al iniciar, el backend arranca igual (la mensajeria no bloquea el negocio)
+      fail-fast: false
+      operation-timeout: 10s
+      properties:
+        request.timeout.ms: 10000
+
 app:
   security:
     issuer: ${JWT_ISSUER:https://login.microsoftonline.com/670a4f6b-6666-47bc-9580-045077b9f328/v2.0}
@@ -58,3 +98,38 @@ app:
       tickets-binding: pedido.creado
       notificaciones-dlq: notificaciones.dlq
       tickets-dlq: tickets.dlq
+
+  # Streaming con Kafka: UNICO lugar donde se definen nombres y parametros de los topicos que usa el backend.
+  # Deben coincidir con kafka/crear-topicos.sh (ambos son idempotentes: el que corra primero los crea).
+  kafka:
+    # false: el backend no publica en Kafka ni crea topicos (por ejemplo, en un servidor sin cluster Kafka)
+    enabled: ${KAFKA_ENABLED:true}
+    topics:
+      # Flujo de hechos de pedidos. Clave = numero de pedido -> todos los eventos de un pedido
+      # caen en la misma particion y se consumen en orden.
+      pedidos-eventos:
+        name: pedidos360.pedidos.eventos
+        partitions: 3
+        replicas: 3
+        configs:
+          "[cleanup.policy]": delete
+          "[retention.ms]": "604800000"        # 7 dias: suficiente para reprocesar la analitica
+          "[min.insync.replicas]": "2"
+          "[compression.type]": producer
+          "[max.message.bytes]": "1048576"
+      # Dead Letter Topic de los consumidores de pedidos-eventos
+      pedidos-eventos-dlt:
+        name: pedidos360.pedidos.eventos.DLT
+        partitions: 1
+        replicas: 3
+        configs:
+          "[cleanup.policy]": delete
+          "[retention.ms]": "1209600000"       # 14 dias para revisar los mensajes fallidos
+          "[min.insync.replicas]": "2"
+    consumo:
+      metricas-ventas: pedidos360.metricas.ventas
+      metricas-ventas-dlt: pedidos360.metricas.ventas.DLT
+      # Un grupo POR INSTANCIA del backend (no compartido): cada instancia necesita TODAS las
+      # particiones para tener la vista completa de metricas. Es el caso opuesto a analitica-service,
+      # donde varias instancias SI comparten grupo para repartirse la carga.
+      grupo-metricas: pedidos360-backend-metricas-${HOSTNAME:${COMPUTERNAME:local}}

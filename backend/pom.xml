@@ -60,6 +60,12 @@
       <artifactId>spring-boot-starter-amqp</artifactId>
     </dependency>
 
+    <!-- Spring for Apache Kafka: Productor de eventos de pedidos hacia el cluster Kafka (streaming y analitica) -->
+    <dependency>
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka</artifactId>
+    </dependency>
+
     <!-- H2 Database: Base de datos en memoria ultrarrapida para desarrollo y pruebas locales sin instalar nada -->
     <dependency>
       <groupId>com.h2database</groupId>
