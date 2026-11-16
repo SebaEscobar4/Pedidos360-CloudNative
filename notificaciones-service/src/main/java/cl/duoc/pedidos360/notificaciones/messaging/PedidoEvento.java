@@ -11,7 +11,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * =========================================================================
  * FUNCION: Copia local del contrato JSON que publica el backend de pedidos.
  *          Ignora campos desconocidos para tolerar que el productor agregue datos nuevos.
- * CONECTA CON: Los consumidores de los dominios 'notificacion' y 'ticket'.
+ *          Llega por RabbitMQ (notificacion, ticket) y por Kafka (auditoria).
+ * CONECTA CON: Los consumidores de los dominios 'notificacion', 'ticket' y 'auditoria'.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record PedidoEvento(
@@ -24,7 +25,9 @@ public record PedidoEvento(
         Double total,
         LocalDateTime fechaCreacion,
         LocalDateTime fechaEvento,
-        List<Item> items) {
+        List<Item> items,
+        // Identificador unico del evento (lo agrega el backend desde la EP5); null en eventos antiguos
+        String eventoId) {
 
     public static final String TIPO_PEDIDO_CREADO = "PEDIDO_CREADO";
 

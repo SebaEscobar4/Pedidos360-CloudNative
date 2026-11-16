@@ -15,7 +15,7 @@
   <artifactId>pedidos360-notificaciones-service</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>pedidos360-notificaciones-service</name>
-  <description>Microservicio consumidor de RabbitMQ: notificaciones y tickets de Pedidos360 - Seccion 002D</description>
+  <description>Microservicio consumidor de RabbitMQ (notificaciones y tickets) y de Kafka (auditoria) de Pedidos360 - Seccion 002D</description>
 
   <properties>
     <java.version>21</java.version>
@@ -32,6 +32,12 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-amqp</artifactId>
+    </dependency>
+
+    <!-- Spring for Apache Kafka: consumidor de auditoria del topico de eventos de pedidos -->
+    <dependency>
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka</artifactId>
     </dependency>
 
     <dependency>

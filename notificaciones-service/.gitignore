@@ -21,3 +21,4 @@ target/
 .env.local
 *.log
 tickets/
+/auditoria/

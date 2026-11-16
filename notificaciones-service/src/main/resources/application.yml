@@ -19,6 +19,31 @@ spring:
         prefetch: 10
         default-requeue-rejected: false
 
+  # Cliente Kafka (consumidor de auditoria). Deserializers definidos en KafkaAuditoriaConfig.
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9093,localhost:9094}
+    client-id: pedidos360-notificaciones
+    consumer:
+      # Grupo PROPIO de la auditoria: recibe TODOS los eventos del topico, igual que el grupo
+      # 'pedidos360-analitica', sin quitarle mensajes (publicar/suscribir entre grupos distintos).
+      group-id: ${KAFKA_GROUP_ID:pedidos360-auditoria}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      isolation-level: read-committed
+      max-poll-records: 50
+      properties:
+        partition.assignment.strategy: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+        session.timeout.ms: 45000
+        heartbeat.interval.ms: 3000
+    producer:
+      # Solo lo usa el envio al Dead Letter Topic
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.block.ms: 5000
+    listener:
+      missing-topics-fatal: false
+
 app:
   # Topologia de mensajeria: UNICO lugar donde se definen nombres de exchanges, colas y routing keys.
   # Debe coincidir con app.rabbitmq del backend de pedidos.
@@ -47,3 +72,24 @@ app:
 
   tickets:
     directorio: ${TICKETS_DIR:tickets}
+
+  # Auditoria de pedidos por Kafka. Convive con RabbitMQ sin tocarlo: si se desactiva,
+  # notificaciones y tickets siguen funcionando igual.
+  kafka:
+    enabled: ${KAFKA_ENABLED:true}
+    topics:
+      pedidos-eventos: pedidos360.pedidos.eventos
+      pedidos-eventos-dlt: pedidos360.pedidos.eventos.DLT
+    consumo:
+      concurrencia: ${KAFKA_CONCURRENCIA:3}
+    reintentos:
+      # Error transitorio (ej: no se pudo escribir el archivo): 3 reintentos 1s, 2s, 4s y luego al DLT
+      maximo: ${KAFKA_REINTENTOS_MAXIMO:3}
+      intervalo-inicial-ms: 1000
+      multiplicador: 2.0
+
+  auditoria:
+    # Un archivo por dia con una linea por evento: auditoria/pedidos-AAAA-MM-DD.txt
+    directorio: ${AUDITORIA_DIR:auditoria}
+    # eventoId recordados para no registrar dos veces el mismo evento
+    capacidad-idempotencia: 10000
