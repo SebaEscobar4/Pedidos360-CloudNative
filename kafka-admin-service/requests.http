@@ -1,0 +1,78 @@
+### Pedidos360 - kafka-admin-service (http://localhost:8083)
+### Todas las rutas /api/** exigen un JWT de Microsoft Entra ID con el App Role ADMIN.
+### Pega el Access Token (sin "Bearer") en la variable de abajo.
+
+@base = http://localhost:8083
+@token = PEGA_AQUI_EL_ACCESS_TOKEN
+
+### Salud (publico)
+GET {{base}}/public/health
+
+### Estado del cluster: brokers y controlador
+GET {{base}}/api/cluster
+Authorization: Bearer {{token}}
+
+### Listar topicos (internos=true incluye __consumer_offsets)
+GET {{base}}/api/topics?internos=false
+Authorization: Bearer {{token}}
+
+### Crear un topico con particiones, replicas y configuraciones
+POST {{base}}/api/topics
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "pedidos360.reportes.diarios",
+  "partitions": 3,
+  "replicationFactor": 3,
+  "configs": {
+    "cleanup.policy": "delete",
+    "retention.ms": "86400000",
+    "min.insync.replicas": "2"
+  }
+}
+
+### Detalle: lider, replicas, ISR, configuracion personalizada y efectiva
+GET {{base}}/api/topics/pedidos360.reportes.diarios
+Authorization: Bearer {{token}}
+
+### Modificar configuraciones (solo cambian las indicadas)
+PUT {{base}}/api/topics/pedidos360.reportes.diarios/configs
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "configs": { "retention.ms": "259200000", "compression.type": "lz4" } }
+
+### Restablecer una configuracion al valor por defecto del broker
+DELETE {{base}}/api/topics/pedidos360.reportes.diarios/configs/compression.type
+Authorization: Bearer {{token}}
+
+### Aumentar particiones (Kafka no permite reducirlas)
+PATCH {{base}}/api/topics/pedidos360.reportes.diarios/partitions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "partitions": 6 }
+
+### Eliminar un topico (los topicos de Pedidos360 estan protegidos -> 409)
+DELETE {{base}}/api/topics/pedidos360.reportes.diarios
+Authorization: Bearer {{token}}
+
+### Listar consumer groups
+GET {{base}}/api/consumer-groups
+Authorization: Bearer {{token}}
+
+### Detalle de un grupo: miembros, particiones asignadas, offsets y lag
+GET {{base}}/api/consumer-groups/pedidos360-analitica
+Authorization: Bearer {{token}}
+
+### Reiniciar offsets (el grupo debe estar detenido) - destino EARLIEST | LATEST | OFFSET
+POST {{base}}/api/consumer-groups/pedidos360-auditoria/reset-offsets
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "topic": "pedidos360.pedidos.eventos", "destino": "EARLIEST" }
+
+### Eliminar un consumer group sin consumidores activos
+DELETE {{base}}/api/consumer-groups/pedidos360-reportes
+Authorization: Bearer {{token}}

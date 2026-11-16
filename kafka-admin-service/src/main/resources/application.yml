@@ -1,0 +1,36 @@
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  application:
+    name: pedidos360-kafka-admin-service
+
+  # Conexion del AdminClient a los 3 brokers de docker-compose.kafka.yml
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9093,localhost:9094}
+    client-id: pedidos360-kafka-admin
+    admin:
+      # El microservicio arranca aunque Kafka no este disponible; las operaciones responden 503
+      fail-fast: false
+      operation-timeout: 10s
+      properties:
+        request.timeout.ms: 10000
+        default.api.timeout.ms: 15000
+
+app:
+  security:
+    issuer: ${JWT_ISSUER:https://login.microsoftonline.com/670a4f6b-6666-47bc-9580-045077b9f328/v2.0}
+    audience: ${JWT_AUDIENCE:a063dd44-191e-4715-9b39-5923cc30c293}
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:4200,https://sebaescobar4.github.io}
+
+  kafka-admin:
+    # Tiempo maximo de espera de cada operacion contra el cluster
+    timeout-segundos: 15
+    # Topicos de los que dependen los microservicios: no se pueden eliminar desde la API
+    topicos-protegidos:
+      - pedidos360.pedidos.eventos
+      - pedidos360.pedidos.eventos.DLT
+      - pedidos360.metricas.ventas
+      - pedidos360.metricas.ventas.DLT
+    # Limites para crear o ampliar topicos
+    max-particiones: 50
